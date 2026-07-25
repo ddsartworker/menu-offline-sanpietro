@@ -17,14 +17,31 @@ trap 'rm -rf "$work"' EXIT
 echo "==> 1/6 Cattura $MENU_URL"
 # Sui runner CI Chrome gira da root senza namespace utente e la sandbox lo
 # blocca all'avvio: senza --no-sandbox la cattura fallisce con "fetch failed".
-npx -y single-file-cli \
-  --browser-executable-path="$CHROME" \
-  --browser-args='["--no-sandbox","--disable-dev-shm-usage","--disable-gpu"]' \
-  --browser-wait-until=networkidle0 \
-  --browser-wait-delay=8000 \
-  --browser-width=1280 --browser-height=1800 \
-  --load-deferred-images=true \
-  "$MENU_URL" "$work/page.html"
+# Menumal ogni tanto rifiuta la richiesta dal runner e single-file riporta solo
+# un generico "fetch failed": un tentativo isolato non basta a dire che il sito
+# e' irraggiungibile.
+for tentativo in 1 2 3; do
+  npx -y single-file-cli \
+    --browser-executable-path="$CHROME" \
+    --browser-args='["--no-sandbox","--disable-dev-shm-usage","--disable-gpu"]' \
+    --browser-wait-until=networkidle0 \
+    --browser-wait-delay=8000 \
+    --browser-width=1280 --browser-height=1800 \
+    --load-deferred-images=true \
+    "$MENU_URL" "$work/page.html" || true
+
+  [ -s "$work/page.html" ] && break
+
+  if [ "$tentativo" -lt 3 ]; then
+    echo "    tentativo $tentativo fallito, riprovo fra $((tentativo * 20))s"
+    sleep $((tentativo * 20))
+  fi
+done
+
+if [ ! -s "$work/page.html" ]; then
+  echo "ERRORE: cattura fallita dopo 3 tentativi" >&2
+  exit 1
+fi
 
 # Un rendering fallito produce un guscio Nuxt vuoto di pochi KB: meglio abortire
 # che pubblicare un menu vuoto sul tablet.
