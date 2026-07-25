@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Da Android 8 il sistema compone l'icona: sfondo e primo piano separati,
+     cosi' puo' ritagliarla in cerchio o quadrato stondato secondo il telefono. -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/sfondo_icona" />
+    <foreground android:drawable="@mipmap/ic_launcher_foreground" />
+</adaptive-icon>

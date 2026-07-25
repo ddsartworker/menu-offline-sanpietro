@@ -32,6 +32,28 @@ ALLERGENI = {
     "shellfish": "Molluschi",
 }
 
+def _bandiera(corpo, viewbox):
+    """Le bandiere vanno disegnate qui: la cattura conserva solo l'icona
+    italiana, l'unica usata dal menu, e delle altre non resta nemmeno una regola.
+    Chiedere al tema quella britannica darebbe un riquadro vuoto."""
+    svg = ("<svg xmlns='http://www.w3.org/2000/svg' viewBox='%s'>%s</svg>"
+           % (viewbox, corpo))
+    return svg.replace("<", "%3C").replace(">", "%3E").replace("#", "%23")
+
+
+BANDIERA_IT = _bandiera(
+    "<rect width='3' height='2' fill='#fff'/>"
+    "<rect width='1' height='2' fill='#008C45'/>"
+    "<rect x='2' width='1' height='2' fill='#CD212A'/>", "0 0 3 2")
+
+BANDIERA_GB = _bandiera(
+    "<rect width='60' height='30' fill='#012169'/>"
+    "<path d='M0,0 L60,30 M60,0 L0,30' stroke='#fff' stroke-width='6'/>"
+    "<path d='M0,0 L60,30 M60,0 L0,30' stroke='#C8102E' stroke-width='4'/>"
+    "<path d='M30,0 L30,30 M0,15 L60,15' stroke='#fff' stroke-width='10'/>"
+    "<path d='M30,0 L30,30 M0,15 L60,15' stroke='#C8102E' stroke-width='6'/>",
+    "0 0 60 30")
+
 CSS = """
 /* Il carosello di Vue non puo' funzionare senza il suo JavaScript: si annulla
    il ritaglio e l'affiancamento, e si mostra una macro-categoria alla volta. */
@@ -80,6 +102,20 @@ button.mm-tab-altro,button.mm-tab-altro span{
 #mm-esito.mm-aperta{display:block}
 .mm-nascosto{display:none!important}
 .mm-vino-via{display:none!important}
+
+/* Tendina delle lingue */
+#mm-lingue{position:fixed;z-index:10001;display:none;min-width:190px;
+  background:#fff;border-radius:11px;overflow:hidden;
+  box-shadow:0 8px 30px rgba(0,0,0,.45)}
+#mm-lingue.mm-aperta{display:block}
+#mm-lingue button{display:flex;align-items:center;gap:11px;width:100%;
+  padding:13px 16px;border:0;background:#fff;color:#15202b;
+  font-size:16px;text-align:left;cursor:pointer}
+#mm-lingue button+button{border-top:1px solid #e8e8e8}
+#mm-lingue button:hover{background:#f2f5f7}
+#mm-lingue button .mm-fl{width:28px;height:20px;border-radius:3px;flex:none;
+  background-size:cover;background-position:center;box-shadow:0 0 0 1px rgba(0,0,0,.12)}
+#mm-lingue button .mm-spunta{margin-left:auto;font-weight:700;color:#2c7f92}
 
 /* Etichetta dell'allergene al tocco */
 #mm-etichetta{position:fixed;z-index:10000;display:none;padding:7px 12px;
@@ -243,15 +279,16 @@ JS_TEMPLATE = """
   // al momento della cattura. Si conservano solo i testi che cambiano davvero:
   // i nomi dei piatti restano in italiano, come sul sito.
   var TRADUZIONI = %s;
+  var BANDIERA_IT = "%s";
+  var BANDIERA_GB = "%s";
 
   (function () {
     if (!TRADUZIONI || !TRADUZIONI.voci) return;
     var elementi = document.querySelectorAll(
       "[data-tab=description],[data-section='categories'],[data-section='subcategories']," +
       "[data-section='macros'],[data-tab=name]");
-    // Se il menu e' cambiato tra la raccolta e adesso, meglio non tradurre nulla
-    // che tradurre il piatto sbagliato.
-    if (elementi.length !== TRADUZIONI.totale) return;
+    // Il confronto e' sul testo, non sulla posizione: lo snapshot non ha
+    // esattamente gli stessi elementi della pagina da cui si e' tradotto.
 
     var bandiera = document.querySelector("#flag");
     if (!bandiera) return;
@@ -261,27 +298,100 @@ JS_TEMPLATE = """
     var inglese = false;
     var originali = null;
 
-    function cambia() {
-      if (!inglese) {
+    function applica(vuoiInglese) {
+      if (vuoiInglese === inglese) return;
+      if (vuoiInglese) {
         // Si salva l'HTML, non solo il testo: alcuni titoli contengono
         // un'etichetta nascosta per i lettori di schermo da ripristinare intatta.
         originali = [];
-        for (var i = 0; i < elementi.length; i++) originali.push(elementi[i].innerHTML);
-        for (var k in TRADUZIONI.voci) {
-          if (elementi[k]) elementi[k].textContent = TRADUZIONI.voci[k];
+        for (var i = 0; i < elementi.length; i++) {
+          originali.push(elementi[i].innerHTML);
+          var testo = (elementi[i].textContent || "")
+            .replace(/categoria menu:/gi, "").replace(/\\s+/g, " ").trim();
+          var reso = TRADUZIONI.voci[testo];
+          if (reso) elementi[i].textContent = reso;
         }
-        bandiera.className = bandiera.className.replace(/\\bfi-it\\b/, "fi-gb");
+        // Non si cambia la classe: il tema non ha la bandiera britannica e
+        // resterebbe un riquadro vuoto. Si sovrascrive l'immagine.
+        bandiera.style.backgroundImage = sfondo(BANDIERA_GB);
+        bandiera.style.backgroundSize = "cover";
         document.documentElement.setAttribute("lang", TRADUZIONI.lingua || "en");
-        inglese = true;
       } else {
         for (var j = 0; j < elementi.length; j++) elementi[j].innerHTML = originali[j];
-        bandiera.className = bandiera.className.replace(/\\bfi-gb\\b/, "fi-it");
+        bandiera.style.backgroundImage = "";
         document.documentElement.setAttribute("lang", "it");
-        inglese = false;
+      }
+      inglese = vuoiInglese;
+    }
+
+    // Una tendina invece di un interruttore: con due lingue si vede subito
+    // quale e' attiva, e resta il posto per aggiungerne altre.
+    function sfondo(svg) { return 'url("data:image/svg+xml,' + svg + '")'; }
+
+    var tendina = document.createElement("div");
+    tendina.id = "mm-lingue";
+
+    // Gli elementi si costruiscono uno a uno invece di comporre HTML in una
+    // stringa: le bandiere sono SVG pieni di virgolette, e infilarli dentro un
+    // attributo style scritto a mano chiude la stringa a meta'.
+    var lingue = [["it", "Italiano", BANDIERA_IT], ["en", "English", BANDIERA_GB]];
+    for (var l = 0; l < lingue.length; l++) {
+      var voce = document.createElement("button");
+      voce.type = "button";
+      voce.setAttribute("data-lingua", lingue[l][0]);
+
+      var fl = document.createElement("span");
+      fl.className = "mm-fl";
+      fl.style.backgroundImage = sfondo(lingue[l][2]);
+
+      var nome = document.createElement("span");
+      nome.textContent = lingue[l][1];
+
+      var spunta = document.createElement("span");
+      spunta.className = "mm-spunta";
+
+      voce.appendChild(fl);
+      voce.appendChild(nome);
+      voce.appendChild(spunta);
+      tendina.appendChild(voce);
+    }
+    document.body.appendChild(tendina);
+
+    var voci = tendina.querySelectorAll("button");
+
+    function segna() {
+      for (var v = 0; v < voci.length; v++) {
+        var attiva = (voci[v].getAttribute("data-lingua") === "en") === inglese;
+        voci[v].querySelector(".mm-spunta").textContent = attiva ? "\\u2713" : "";
       }
     }
 
-    comando.addEventListener("click", cambia);
+    function apri() {
+      var r = comando.getBoundingClientRect();
+      tendina.classList.add("mm-aperta");
+      // Ancorata sotto la bandiera, ma senza uscire dal bordo dello schermo.
+      var largh = tendina.offsetWidth;
+      tendina.style.top = (r.bottom + 8) + "px";
+      tendina.style.left = Math.max(8, Math.min(r.right - largh, window.innerWidth - largh - 8)) + "px";
+      segna();
+    }
+
+    function chiudi() { tendina.classList.remove("mm-aperta"); }
+
+    comando.addEventListener("click", function (ev) {
+      ev.stopPropagation();
+      if (tendina.classList.contains("mm-aperta")) chiudi(); else apri();
+    });
+
+    for (var w = 0; w < voci.length; w++) {
+      voci[w].addEventListener("click", function (ev) {
+        ev.stopPropagation();
+        applica(this.getAttribute("data-lingua") === "en");
+        chiudi();
+      });
+    }
+
+    document.addEventListener("click", chiudi);
   })();
 
   /* ---------- 2. Ricerca ---------- */
@@ -419,7 +529,8 @@ def inject(doc, ancore, traduzioni):
     import json
     js = JS_TEMPLATE % (json.dumps(ALLERGENI, ensure_ascii=False),
                         json.dumps(ancore, ensure_ascii=False),
-                        json.dumps(traduzioni, ensure_ascii=False))
+                        json.dumps(traduzioni, ensure_ascii=False),
+                        BANDIERA_IT, BANDIERA_GB)
     block = "<style id='mm-stile'>%s</style><script id='mm-script'>%s</script>" % (CSS, js)
 
     end = re.search(r"</body\s*>", doc, re.I)

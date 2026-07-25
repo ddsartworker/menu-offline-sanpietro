@@ -73,9 +73,12 @@ try {
     throw new Error(`elenco cambiato: ${italiano.length} -> ${inglese.length}`);
   }
 
+  // Si indicizza per testo italiano e non per posizione: lo snapshot non ha
+  // esattamente gli stessi elementi della pagina live (Google Translate ne
+  // aggiunge di suoi), e un indice sfalsato tradurrebbe il piatto sbagliato.
   const voci = {};
   for (let i = 0; i < italiano.length; i++) {
-    if (italiano[i] && inglese[i] && italiano[i] !== inglese[i]) voci[i] = inglese[i];
+    if (italiano[i] && inglese[i] && italiano[i] !== inglese[i]) voci[italiano[i]] = inglese[i];
   }
 
   const tradotti = Object.keys(voci).length;

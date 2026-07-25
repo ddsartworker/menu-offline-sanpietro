@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Il logo e' un disegno blu notte su bianco: lo sfondo dell'icona resta
+         bianco come nell'originale del ristorante. -->
+    <color name="sfondo_icona">#FFFFFF</color>
+</resources>
