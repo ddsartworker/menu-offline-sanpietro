@@ -30,14 +30,27 @@ echo "Menu cambiato: ${old_sha:0:12}${old_sha:+...} -> ${new_sha:0:12}..."
 cd "$DIST"
 touch .nojekyll
 
-# Il repo appena creato non eredita l'identita' di quello esterno: va passata
-# esplicitamente, altrimenti il commit fallisce con "empty ident name".
+# Si aggiunge un commit sopra la storia esistente invece di ricreare il branch e
+# forzarlo: riscrivere la storia a ogni pubblicazione manda in errore la
+# ricostruzione di GitHub Pages. Il repo non cresce comunque, perche' i font
+# incorporati - 1,5 MB su 1,8 - sono identici a ogni giro e git li comprime via.
+REMOTE="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+
 rm -rf .git
 git init -q -b pages
+# Il repo appena creato non eredita l'identita' di quello esterno: va passata
+# esplicitamente, altrimenti il commit fallisce con "empty ident name".
+git config user.name "$BOT_NAME"
+git config user.email "$BOT_MAIL"
 git add -A
-git -c user.name="$BOT_NAME" -c user.email="$BOT_MAIL" \
-  commit -q -m "Menu aggiornato $(date -u '+%F %H:%M') UTC"
-git push -q --force \
-  "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" pages
+
+if git fetch -q --depth=1 "$REMOTE" pages 2>/dev/null; then
+  # I file restano quelli nuovi, ma il commit si aggancia a quello pubblicato.
+  git reset -q --soft FETCH_HEAD
+  git add -A
+fi
+
+git commit -q -m "Menu aggiornato $(date -u '+%F %H:%M') UTC"
+git push -q "$REMOTE" pages
 
 echo "Pubblicato: $(( $(wc -c < menu.html) / 1024 )) KB"
