@@ -394,6 +394,37 @@ JS_TEMPLATE = """
     document.addEventListener("click", chiudi);
   })();
 
+  /* ---------- 1d. Niente allergeni sulla carta dei vini ---------- */
+  // Su una bottiglia l'unico allergene e' quasi sempre il solfito, che c'e' in
+  // quasi tutti i vini: l'icona sotto ogni etichetta non informa nessuno e
+  // appesantisce una lista di centinaia di voci.
+  (function () {
+    function eVino(testo) { return /vin|cantina|champagne|bollicine/i.test(testo || ""); }
+
+    for (var s = 0; s < slides.length; s++) {
+      var etichettaMacro = tabs[s] ? (tabs[s].textContent || "") : "";
+      var tuttaLaSezione = eVino(etichettaMacro);
+
+      // Si scorre la sezione in ordine tenendo conto di sotto quale categoria
+      // ci si trova: le voci non sono annidate nel loro titolo ma gli stanno
+      // semplicemente dopo, quindi va ricordato l'ultimo titolo incontrato.
+      var dentroVini = tuttaLaSezione;
+      var nodi = slides[s].querySelectorAll(
+        "[data-section='categories'],[data-section='subcategories'],[class*='allergen-food']");
+
+      for (var n = 0; n < nodi.length; n++) {
+        var nodo = nodi[n];
+        var sezione = nodo.getAttribute("data-section");
+        if (sezione === "categories") {
+          dentroVini = tuttaLaSezione || eVino(nodo.textContent);
+        } else if (sezione !== "subcategories" && dentroVini) {
+          var riga = nodo.closest(".elementContainer") || nodo;
+          if (riga !== slides[s]) nodo.style.display = "none";
+        }
+      }
+    }
+  })();
+
   /* ---------- 2. Ricerca ---------- */
   var piatti = document.querySelectorAll(".elementContainer");
   var titoli = document.querySelectorAll('[data-section="categories"]');

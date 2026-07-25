@@ -51,6 +51,21 @@ if git fetch -q --depth=1 "$REMOTE" pages 2>/dev/null; then
 fi
 
 git commit -q -m "Menu aggiornato $(date -u '+%F %H:%M') UTC"
-git push -q "$REMOTE" pages
+
+# Due catture ravvicinate possono pubblicare quasi insieme e la seconda si
+# vedrebbe respingere il push. Invece di perdere lo snapshot si ricalca il
+# commit appena arrivato e si riprova una volta.
+if ! git push -q "$REMOTE" pages 2>/dev/null; then
+  echo "push respinto, mi riallineo e riprovo"
+  git fetch -q --depth=1 "$REMOTE" pages
+  git reset -q --soft FETCH_HEAD
+  git add -A
+  if git diff -q --cached --exit-code >/dev/null 2>&1; then
+    echo "l'altra pubblicazione ha gia' portato lo stesso menu, niente da fare"
+    exit 0
+  fi
+  git commit -q -m "Menu aggiornato $(date -u '+%F %H:%M') UTC"
+  git push -q "$REMOTE" pages
+fi
 
 echo "Pubblicato: $(( $(wc -c < menu.html) / 1024 )) KB"
