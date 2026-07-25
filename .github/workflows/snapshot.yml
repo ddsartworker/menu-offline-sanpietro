@@ -1,0 +1,76 @@
+name: Snapshot menu
+
+# Il menu cambia quasi ogni giorno (piatti del giorno), quindi si controlla ogni ora.
+# Se il contenuto non e' cambiato non si pubblica nulla e il tablet non scarica nulla.
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: snapshot
+  cancel-in-progress: true
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Dipendenze
+        run: pip install --quiet fonttools brotli
+
+      - name: Cattura e ottimizza
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+        run: |
+          bash tools/capture.sh
+
+      - name: Pubblica solo se il menu e' cambiato
+        run: |
+          # checkout e' shallow e non porta gli altri branch: il branch pages
+          # va recuperato a mano, e al primo giro non esiste ancora.
+          git fetch --depth=1 origin pages:refs/remotes/origin/pages 2>/dev/null || true
+
+          new_sha=$(jq -r .sha256 dist/version.json)
+          old_sha=$(git show refs/remotes/origin/pages:version.json 2>/dev/null | jq -r .sha256 || echo "")
+
+          if [ "$new_sha" = "$old_sha" ]; then
+            echo "Menu invariato ($new_sha), niente da pubblicare."
+            exit 0
+          fi
+          echo "Menu cambiato: ${old_sha:-nessuno} -> $new_sha"
+
+          # Branch orfano ricreato ogni volta: il repo non cresce mai, anche
+          # pubblicando uno snapshot da 2 MB tutti i giorni per anni.
+          git config user.name "menu-bot"
+          git config user.email "menu-bot@users.noreply.github.com"
+          cd dist
+          touch .nojekyll
+          git init -q -b pages
+          git add -A
+          git commit -q -m "Menu aggiornato $(date -u +%F\ %H:%M) UTC"
+          git push -q --force \
+            "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" pages
+
+      - name: Riepilogo
+        if: always()
+        run: |
+          {
+            echo "### Snapshot menu"
+            echo ""
+            if [ -f dist/version.json ]; then
+              echo "- Dimensione: $(( $(jq -r .size dist/version.json) / 1024 )) KB"
+              echo "- SHA256: \`$(jq -r .sha256 dist/version.json | cut -c1-16)\`"
+              echo "- Prezzi trovati: $(grep -o '€' dist/menu.html | wc -l | tr -d ' ')"
+            else
+              echo "- Cattura fallita"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
