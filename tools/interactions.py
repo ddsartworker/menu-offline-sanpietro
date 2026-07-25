@@ -103,6 +103,17 @@ button.mm-tab-altro,button.mm-tab-altro span{
 .mm-nascosto{display:none!important}
 .mm-vino-via{display:none!important}
 
+/* Fascia superiore piena.
+   L'intestazione e' fissa a 70px e i tab stanno poco sotto, ma fra i due resta
+   una fessura trasparente: scorrendo, i piatti ci passavano dentro e si
+   leggevano dietro le voci del menu. Invece di rincorrere i singoli pezzi si
+   mette un fondale opaco dietro tutto il blocco, alto quanto serve.
+   Il colore e' campionato dallo sfondo del menu, per non stonare. */
+#mm-fondale{position:fixed;top:0;left:0;right:0;z-index:40;
+  background:#3b4245;pointer-events:none}
+header[data-section="header"]{z-index:60}
+#tabsMenu{position:relative;z-index:60}
+
 /* Tendina delle lingue */
 #mm-lingue{position:fixed;z-index:10001;display:none;min-width:190px;
   background:#fff;border-radius:11px;overflow:hidden;
@@ -458,6 +469,27 @@ JS_TEMPLATE = """
         }
       }
     }
+  })();
+
+  /* ---------- 1e. Fondale della fascia superiore ---------- */
+  // L'altezza si misura invece di scriverla: dipende da quante righe occupano
+  // i tab, che cambiano con la larghezza dello schermo e con la lingua.
+  (function () {
+    var fondale = document.createElement("div");
+    fondale.id = "mm-fondale";
+    document.body.appendChild(fondale);
+
+    function misura() {
+      var barra = document.getElementById("tabsMenu");
+      var basso = barra ? barra.getBoundingClientRect().bottom : 70;
+      fondale.style.height = Math.round(basso) + "px";
+    }
+
+    misura();
+    window.addEventListener("resize", misura);
+    // Cambiando sezione o lingua le voci possono andare a capo: si rimisura.
+    window.addEventListener("orientationchange", misura);
+    document.addEventListener("click", function () { setTimeout(misura, 60); });
   })();
 
   /* ---------- 2. Ricerca ---------- */
