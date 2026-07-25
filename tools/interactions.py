@@ -257,6 +257,41 @@ JS_TEMPLATE = """
             }
           }
 
+          // I titoli verdi delle zone - "Rossi Stranieri", "Bianchi - Campania"
+          // - sul sito originale restano visibili sopra i vini del gruppo, e
+          // servono a capire cosa si sta guardando. Vanno mostrati anche qui:
+          // filtrando i soli vini sparivano, lasciando un elenco senza capo.
+          //
+          // Un titolo appartiene al gruppo scelto se il primo vino che lo segue
+          // rientra nell'intervallo: si scorre il documento in ordine tenendo il
+          // conto dei vini incontrati.
+          var inOrdine = slide.querySelectorAll("[data-tab=name],[data-section=subcategories]");
+          var visti = 0;
+          var attesa = [];
+          for (var o = 0; o < inOrdine.length; o++) {
+            var pezzo = inOrdine[o];
+            if (pezzo.getAttribute("data-section") === "subcategories") {
+              attesa.push(pezzo);
+            } else {
+              var dentro = visti >= da && visti < a;
+              for (var w = 0; w < attesa.length; w++) {
+                attesa[w].classList.toggle("mm-vino-via", !dentro);
+                if (dentro) {
+                  var risalita = attesa[w];
+                  while (risalita && risalita !== slide) {
+                    if (risalita.style && risalita.style.display === "none") {
+                      risalita.style.display = "";
+                    }
+                    risalita = risalita.parentElement;
+                  }
+                }
+              }
+              attesa = [];
+              visti++;
+            }
+          }
+          for (var z = 0; z < attesa.length; z++) attesa[z].classList.add("mm-vino-via");
+
           // Il tema marca la zona scelta con la classe "active": usare quella
           // da' lo stesso riempimento delle altre invece di un bordo inventato.
           for (var t = 0; t < chips.length; t++) {
