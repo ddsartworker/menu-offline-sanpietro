@@ -1,0 +1,53 @@
+name: Build APK
+
+# L'APK si compila qui, non sul portatile: un MacBook con 8 GB di RAM e
+# Android Studio non e' una combinazione felice.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "android/**"
+      - ".github/workflows/android.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Compila
+        working-directory: android
+        run: |
+          gradle assembleDebug --no-daemon \
+            -PupdateBaseUrl="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"
+
+      - name: Rinomina
+        run: |
+          mv android/app/build/outputs/apk/debug/app-debug.apk menu-sanpietro.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: menu-sanpietro-apk
+          path: menu-sanpietro.apk
+
+      # Una release da' un link diretto: sul tablet si apre il browser,
+      # si scarica e si installa, senza passare da un login GitHub.
+      - name: Pubblica release
+        run: |
+          gh release delete apk-latest --yes --cleanup-tag 2>/dev/null || true
+          gh release create apk-latest menu-sanpietro.apk \
+            --title "APK piu' recente" \
+            --notes "Installa questo file sul tablet. Aggiorna il menu da solo quando trova connessione."
+        env:
+          GH_TOKEN: ${{ github.token }}
