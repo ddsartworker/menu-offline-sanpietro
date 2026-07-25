@@ -1,14 +1,17 @@
 name: Snapshot menu
 
-# Il menu cambia quasi ogni giorno (piatti del giorno), quindi si controlla ogni
-# ora. Se il contenuto non e' cambiato non si pubblica nulla e il tablet non
-# scarica nulla.
+# Il menu cambia piu' volte al giorno (piatti del giorno, vini esauriti), quindi
+# si controlla ogni 15 minuti. Se il contenuto non e' cambiato non si pubblica
+# nulla e il tablet non scarica nulla: girare spesso non costa banda al locale.
+#
+# I minuti sono sfalsati e non a inizio quarto d'ora: le esecuzioni programmate
+# di GitHub sono piu' spesso in ritardo negli istanti di punta.
 #
 # La logica sta negli script in tools/: qui restano solo le chiamate, cosi' una
 # correzione non richiede di modificare un file di workflow.
 on:
   schedule:
-    - cron: "17 * * * *"
+    - cron: "2,17,32,47 * * * *"
   workflow_dispatch:
 
 permissions:
