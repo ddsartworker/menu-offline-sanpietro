@@ -42,11 +42,18 @@ CSS = """
    ferma il menu resta bianco: cosi' invece degrada a tutte le sezioni una sotto
    l'altra, brutto ma leggibile. */
 .mm-spenta{display:none!important}
-/* L'altezza va tenuta: senza, il riquadro interno cresce quanto il contenuto,
-   smette di essere un'area che scorre e il menu diventa una colonna che sborda
-   dallo schermo senza barra di scorrimento. */
-.mm-accesa{display:block!important;width:100%!important;height:100%!important}
-.mm-accesa .carousel__item{height:100%!important;overflow-y:auto!important}
+/* Niente altezze forzate: imporre height:100% qui sembrava servire a far
+   scorrere la sezione, ma a scorrere e' il contenitore del carosello piu' in
+   alto, mentre l'altezza fissa tagliava il contenuto delle sezioni piu' lunghe
+   lasciandole vuote. */
+/* La sezione deve cominciare in alto. Il carosello la centrava verticalmente e
+   la rimpiccioliva (opacity e scale sulle slide non attive): su uno schermo alto
+   il contenuto finiva in fondo, e sembrava che la sezione fosse vuota. */
+.mm-accesa{display:block!important;width:100%!important;
+  opacity:1!important;transform:none!important;
+  align-items:flex-start!important;justify-content:flex-start!important;
+  margin-top:0!important}
+.carousel__track{align-items:flex-start!important}
 div[data-section="macros"]{cursor:pointer}
 
 /* Quale sezione si sta guardando deve essere ovvio. Scambiare le classi del
@@ -73,7 +80,6 @@ button.mm-tab-altro,button.mm-tab-altro span{
 #mm-esito.mm-aperta{display:block}
 .mm-nascosto{display:none!important}
 .mm-vino-via{display:none!important}
-li.mm-zona-scelta{outline:2px solid currentColor;outline-offset:-2px}
 
 /* Etichetta dell'allergene al tocco */
 #mm-etichetta{position:fixed;z-index:10000;display:none;padding:7px 12px;
@@ -176,22 +182,6 @@ JS_TEMPLATE = """
     return document.scrollingElement || document.documentElement;
   }
 
-  function portaSu(elemento) {
-    var sc = scrollerDi(elemento);
-    var prima = sc.scrollTop;
-    var y = elemento.getBoundingClientRect().top
-          - sc.getBoundingClientRect().top + sc.scrollTop;
-    // Un margine perche' il titolo del gruppo, che sta sopra il primo piatto,
-    // non finisca nascosto sotto la barra dei chip.
-    sc.scrollTop = Math.max(0, y - 96);
-
-    // Il contenitore che scorre cambia con il formato dello schermo: se il
-    // calcolo non ha mosso nulla si lascia decidere al browser.
-    if (sc.scrollTop === prima) {
-      try { elemento.scrollIntoView({ block: "start" }); }
-      catch (e) { elemento.scrollIntoView(); }
-    }
-  }
 
   Object.keys(ANCORE).forEach(function (m) {
     var slide = slides[m];
@@ -231,10 +221,17 @@ JS_TEMPLATE = """
             }
           }
 
+          // Il tema marca la zona scelta con la classe "active": usare quella
+          // da' lo stesso riempimento delle altre invece di un bordo inventato.
           for (var t = 0; t < chips.length; t++) {
-            chips[t].classList.toggle("mm-zona-scelta", t === indiceChip);
+            chips[t].classList.toggle("active", t === indiceChip);
           }
-          portaSu(nomi[da]);
+
+          // Niente scorrimento: ora che la lista e' filtrata il gruppo comincia
+          // subito sotto i chip. Scorrere faceva salire la barra delle zone
+          // sopra i tab delle sezioni, sovrapponendosi.
+          var sc = scrollerDi(nomi[da]);
+          if (sc) sc.scrollTop = 0;
         });
       })(chips[c], mappa[c], c);
     }
