@@ -15,8 +15,11 @@ work=$(mktemp -d -t menu-XXXXXX)
 trap 'rm -rf "$work"' EXIT
 
 echo "==> 1/5 Cattura $MENU_URL"
+# Sui runner CI Chrome gira da root senza namespace utente e la sandbox lo
+# blocca all'avvio: senza --no-sandbox la cattura fallisce con "fetch failed".
 npx -y single-file-cli \
   --browser-executable-path="$CHROME" \
+  --browser-args='["--no-sandbox","--disable-dev-shm-usage","--disable-gpu"]' \
   --browser-wait-until=networkidle0 \
   --browser-wait-delay=8000 \
   --browser-width=1280 --browser-height=1800 \
