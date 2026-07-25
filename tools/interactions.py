@@ -237,6 +237,53 @@ JS_TEMPLATE = """
     }
   });
 
+  /* ---------- 1c. Cambio lingua ---------- */
+  // Menumal traduce con Google Translate, che ha bisogno della rete: offline la
+  // bandiera non farebbe nulla. Qui la traduzione e' gia' dentro il file, presa
+  // al momento della cattura. Si conservano solo i testi che cambiano davvero:
+  // i nomi dei piatti restano in italiano, come sul sito.
+  var TRADUZIONI = %s;
+
+  (function () {
+    if (!TRADUZIONI || !TRADUZIONI.voci) return;
+    var elementi = document.querySelectorAll(
+      "[data-tab=description],[data-section='categories'],[data-section='subcategories']," +
+      "[data-section='macros'],[data-tab=name]");
+    // Se il menu e' cambiato tra la raccolta e adesso, meglio non tradurre nulla
+    // che tradurre il piatto sbagliato.
+    if (elementi.length !== TRADUZIONI.totale) return;
+
+    var bandiera = document.querySelector("#flag");
+    if (!bandiera) return;
+    var comando = bandiera.closest("button") || bandiera.parentElement || bandiera;
+    comando.style.cursor = "pointer";
+
+    var inglese = false;
+    var originali = null;
+
+    function cambia() {
+      if (!inglese) {
+        // Si salva l'HTML, non solo il testo: alcuni titoli contengono
+        // un'etichetta nascosta per i lettori di schermo da ripristinare intatta.
+        originali = [];
+        for (var i = 0; i < elementi.length; i++) originali.push(elementi[i].innerHTML);
+        for (var k in TRADUZIONI.voci) {
+          if (elementi[k]) elementi[k].textContent = TRADUZIONI.voci[k];
+        }
+        bandiera.className = bandiera.className.replace(/\\bfi-it\\b/, "fi-gb");
+        document.documentElement.setAttribute("lang", TRADUZIONI.lingua || "en");
+        inglese = true;
+      } else {
+        for (var j = 0; j < elementi.length; j++) elementi[j].innerHTML = originali[j];
+        bandiera.className = bandiera.className.replace(/\\bfi-gb\\b/, "fi-it");
+        document.documentElement.setAttribute("lang", "it");
+        inglese = false;
+      }
+    }
+
+    comando.addEventListener("click", cambia);
+  })();
+
   /* ---------- 2. Ricerca ---------- */
   var piatti = document.querySelectorAll(".elementContainer");
   var titoli = document.querySelectorAll('[data-section="categories"]');
@@ -359,7 +406,7 @@ JS_TEMPLATE = """
 """
 
 
-def inject(doc, ancore):
+def inject(doc, ancore, traduzioni):
     slides = len(re.findall(r'class="[^"]*carousel__item', doc))
     dishes = len(re.findall(r"elementContainer", doc))
     icons = len(re.findall(r"allergen-food", doc))
@@ -371,7 +418,8 @@ def inject(doc, ancore):
 
     import json
     js = JS_TEMPLATE % (json.dumps(ALLERGENI, ensure_ascii=False),
-                        json.dumps(ancore, ensure_ascii=False))
+                        json.dumps(ancore, ensure_ascii=False),
+                        json.dumps(traduzioni, ensure_ascii=False))
     block = "<style id='mm-stile'>%s</style><script id='mm-script'>%s</script>" % (CSS, js)
 
     end = re.search(r"</body\s*>", doc, re.I)
@@ -395,9 +443,17 @@ if __name__ == "__main__":
         except ValueError:
             print("  avviso: ancore illeggibili, i chip delle zone resteranno fermi")
 
-    out, slides, dishes, icons = inject(doc, ancore)
+    traduzioni = {}
+    if len(sys.argv) > 4 and os.path.exists(sys.argv[4]):
+        try:
+            traduzioni = json.load(open(sys.argv[4], encoding="utf-8"))
+        except ValueError:
+            print("  avviso: traduzioni illeggibili, la bandiera restera' ferma")
+
+    out, slides, dishes, icons = inject(doc, ancore, traduzioni)
     open(sys.argv[2], "w", encoding="utf-8").write(out)
 
     n = sum(len(v) for v in ancore.values())
-    print("interazioni: %d macro-categorie, %d piatti ricercabili, %d icone allergene, %d zone"
-          % (slides, dishes, icons, n))
+    t = len(traduzioni.get("voci", {}))
+    print("interazioni: %d macro-categorie, %d piatti ricercabili, %d icone allergene, "
+          "%d zone, %d testi in inglese" % (slides, dishes, icons, n, t))
