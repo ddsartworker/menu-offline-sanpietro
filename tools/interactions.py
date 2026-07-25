@@ -37,9 +37,22 @@ CSS = """
    il ritaglio e l'affiancamento, e si mostra una macro-categoria alla volta. */
 .carousel__viewport{overflow:visible!important}
 .carousel__track{display:block!important;transform:none!important;width:100%!important}
-.carousel__item{display:none!important;width:100%!important;height:100%!important}
-.carousel__item.mm-attiva{display:block!important}
+/* Si spegne solo cio' che il JavaScript ha spento davvero. Nasconderle tutte da
+   CSS e riaccenderne una da JavaScript sembra equivalente, ma se lo script si
+   ferma il menu resta bianco: cosi' invece degrada a tutte le sezioni una sotto
+   l'altra, brutto ma leggibile. */
+.mm-spenta{display:none!important}
+.mm-accesa{display:block!important;width:100%!important}
 div[data-section="macros"]{cursor:pointer}
+
+/* Quale sezione si sta guardando deve essere ovvio. Scambiare le classi del
+   tema non basta: il colore del tab attivo arriva da altre regole che non lo
+   seguono, e restava evidenziata la prima voce qualunque cosa si scegliesse. */
+button.mm-tab-scelto,button.mm-tab-scelto span{
+  opacity:1!important;text-decoration:underline!important;
+  text-underline-offset:7px!important;text-decoration-thickness:2px!important}
+button.mm-tab-altro,button.mm-tab-altro span{
+  opacity:.6!important;text-decoration:none!important}
 
 /* Ricerca */
 #mm-cerca{position:fixed;top:0;left:0;right:0;z-index:9999;display:none;
@@ -71,9 +84,38 @@ JS_TEMPLATE = """
   var slides = document.querySelectorAll(".carousel__item");
   var tabs = document.querySelectorAll('div[data-section="macros"]');
 
+  // Ogni sezione sta dentro un <li> del carosello. Spegnere il div interno non
+  // basta: il <li> resta e continua a occupare spazio, spingendo le sezioni
+  // successive fuori dallo schermo. Va spento il contenitore.
+  var sezioni = [];
+  for (var s = 0; s < slides.length; s++) {
+    sezioni.push(slides[s].closest(".carousel__slide") || slides[s]);
+  }
+
+  // Lo stile del tab scelto sta sul <button> che lo avvolge, in classi generate
+  // dal tema (underlineMacroActive contro underlineMacro). Invece di inventare
+  // una sottolineatura nostra si copiano quelle esistenti dallo stato iniziale:
+  // cosi' l'aspetto resta identico anche se il ristorante cambia tema.
+  var bottoni = [], classiAttive = null, classiSpente = null;
+  for (var b = 0; b < tabs.length; b++) {
+    var bottone = tabs[b].closest("button") || tabs[b];
+    bottoni.push(bottone);
+    if (bottone.getAttribute("aria-selected") === "true") classiAttive = bottone.className;
+    else if (classiSpente === null) classiSpente = bottone.className;
+  }
+
   function mostraCategoria(indice) {
-    for (var i = 0; i < slides.length; i++) {
-      slides[i].classList.toggle("mm-attiva", i === indice);
+    for (var i = 0; i < sezioni.length; i++) {
+      sezioni[i].classList.toggle("mm-spenta", i !== indice);
+      sezioni[i].classList.toggle("mm-accesa", i === indice);
+    }
+    for (var b2 = 0; b2 < bottoni.length; b2++) {
+      if (classiAttive !== null && classiSpente !== null) {
+        bottoni[b2].className = (b2 === indice) ? classiAttive : classiSpente;
+      }
+      bottoni[b2].setAttribute("aria-selected", b2 === indice ? "true" : "false");
+      bottoni[b2].classList.toggle("mm-tab-scelto", b2 === indice);
+      bottoni[b2].classList.toggle("mm-tab-altro", b2 !== indice);
     }
     for (var j = 0; j < tabs.length; j++) {
       var etichetta = tabs[j].querySelector("span");
@@ -83,7 +125,17 @@ JS_TEMPLATE = """
         etichetta.setAttribute("data-subsection", j === indice ? "macroActive" : "macro");
       }
     }
-    if (slides[indice]) slides[indice].scrollTop = 0;
+    // Ogni categoria riparte dall'alto. Non basta azzerare la slide: a scorrere
+    // e' anche il contenitore del carosello, e restando dov'era si finisce a
+    // fissare il vuoto sotto una sezione piu' corta della precedente.
+    var risali = slides[indice];
+    while (risali && risali !== document.body) {
+      if (risali.scrollTop) risali.scrollTop = 0;
+      risali = risali.parentElement;
+    }
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+    if (window.scrollTo) window.scrollTo(0, 0);
   }
 
   if (slides.length && slides.length === tabs.length) {
@@ -126,7 +178,6 @@ JS_TEMPLATE = """
     if (!q) {
       for (var i = 0; i < piatti.length; i++) piatti[i].classList.remove("mm-nascosto");
       for (var t = 0; t < titoli.length; t++) titoli[t].classList.remove("mm-nascosto");
-      for (var s = 0; s < slides.length; s++) slides[s].classList.remove("mm-attiva");
       mostraCategoria(indiceAttivo());
       esito.classList.remove("mm-aperta");
       return;
@@ -134,7 +185,10 @@ JS_TEMPLATE = """
 
     // Cercando si guarda in tutto il menu, non solo nella categoria aperta:
     // il cliente non sa in quale sezione sia il piatto.
-    for (var d = 0; d < slides.length; d++) slides[d].classList.add("mm-attiva");
+    for (var d = 0; d < sezioni.length; d++) {
+      sezioni[d].classList.remove("mm-spenta");
+      sezioni[d].classList.add("mm-accesa");
+    }
 
     var trovati = 0;
     for (var p = 0; p < piatti.length; p++) {
