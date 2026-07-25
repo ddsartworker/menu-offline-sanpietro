@@ -28,6 +28,7 @@ for tentativo in 1 2 3; do
     --browser-wait-delay=8000 \
     --browser-width=1280 --browser-height=1800 \
     --load-deferred-images=true \
+    --remove-hidden-elements=false \
     "$MENU_URL" "$work/page.html" || true
 
   [ -s "$work/page.html" ] && break
