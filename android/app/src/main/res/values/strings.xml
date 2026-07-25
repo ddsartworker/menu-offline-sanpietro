@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Menu San Pietro</string>
+    <string name="first_sync">Primo avvio: collega il tablet a internet una volta per scaricare il menu.\n\nDopo questa volta funzionerà anche senza connessione.</string>
+    <string name="updated_banner">Menu aggiornato — sarà attivo alla prossima apertura</string>
+</resources>
