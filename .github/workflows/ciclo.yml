@@ -1,0 +1,43 @@
+name: Ciclo menu
+
+# GitHub limita le esecuzioni programmate: ne chiedevamo quattro all'ora e ne
+# arrivava una. Non limita pero' la durata di una singola esecuzione, che puo'
+# arrivare a sei ore. Quindi invece di chiedere tante partenze se ne chiede una
+# ogni quattro ore e la si tiene accesa, catturando il menu ogni quarto d'ora.
+#
+# Le partenze sono piu' frequenti della durata del ciclo di proposito: se GitHub
+# ritarda di un'ora, la successiva copre comunque il buco.
+#
+# La logica sta in tools/ciclo.sh, cosi' una correzione non richiede di
+# modificare un file di workflow.
+on:
+  schedule:
+    - cron: "5 */4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ciclo-menu
+  cancel-in-progress: true
+
+jobs:
+  ciclo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 345
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Dipendenze
+        run: pip install --quiet fonttools brotli
+
+      - name: Cattura ogni quarto d'ora
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+          GITHUB_TOKEN: ${{ github.token }}
+        run: bash tools/ciclo.sh
