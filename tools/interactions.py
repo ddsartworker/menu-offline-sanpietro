@@ -42,7 +42,11 @@ CSS = """
    ferma il menu resta bianco: cosi' invece degrada a tutte le sezioni una sotto
    l'altra, brutto ma leggibile. */
 .mm-spenta{display:none!important}
-.mm-accesa{display:block!important;width:100%!important}
+/* L'altezza va tenuta: senza, il riquadro interno cresce quanto il contenuto,
+   smette di essere un'area che scorre e il menu diventa una colonna che sborda
+   dallo schermo senza barra di scorrimento. */
+.mm-accesa{display:block!important;width:100%!important;height:100%!important}
+.mm-accesa .carousel__item{height:100%!important;overflow-y:auto!important}
 div[data-section="macros"]{cursor:pointer}
 
 /* Quale sezione si sta guardando deve essere ovvio. Scambiare le classi del
@@ -68,6 +72,8 @@ button.mm-tab-altro,button.mm-tab-altro span{
   background:rgba(12,20,26,.9)}
 #mm-esito.mm-aperta{display:block}
 .mm-nascosto{display:none!important}
+.mm-vino-via{display:none!important}
+li.mm-zona-scelta{outline:2px solid currentColor;outline-offset:-2px}
 
 /* Etichetta dell'allergene al tocco */
 #mm-etichetta{position:fixed;z-index:10000;display:none;padding:7px 12px;
@@ -149,6 +155,90 @@ JS_TEMPLATE = """
     }
     mostraCategoria(0);
   }
+
+  /* ---------- 1b. Chip di sottocategoria (zone dei vini) ---------- */
+  // Nello snapshot i vini sono un'unica lista piatta e i chip non saprebbero
+  // dove portare: il legame chip -> gruppo non esiste nell'HTML. Le ancore sono
+  // state scoperte cliccando i chip sul sito vero (tools/anchors.mjs) e sono il
+  // nome del primo piatto di ogni gruppo.
+  var ANCORE = %s;
+
+  // Chi scorre davvero non e' la sezione ma un suo antenato, e cambia a seconda
+  // del formato dello schermo: va cercato invece che indovinato. scrollIntoView
+  // da solo non basta, non muove il contenitore giusto.
+  function scrollerDi(elemento) {
+    var n = elemento.parentElement;
+    while (n && n !== document.body) {
+      var ov = getComputedStyle(n).overflowY;
+      if ((ov === "auto" || ov === "scroll") && n.scrollHeight > n.clientHeight + 4) return n;
+      n = n.parentElement;
+    }
+    return document.scrollingElement || document.documentElement;
+  }
+
+  function portaSu(elemento) {
+    var sc = scrollerDi(elemento);
+    var prima = sc.scrollTop;
+    var y = elemento.getBoundingClientRect().top
+          - sc.getBoundingClientRect().top + sc.scrollTop;
+    // Un margine perche' il titolo del gruppo, che sta sopra il primo piatto,
+    // non finisca nascosto sotto la barra dei chip.
+    sc.scrollTop = Math.max(0, y - 96);
+
+    // Il contenitore che scorre cambia con il formato dello schermo: se il
+    // calcolo non ha mosso nulla si lascia decidere al browser.
+    if (sc.scrollTop === prima) {
+      try { elemento.scrollIntoView({ block: "start" }); }
+      catch (e) { elemento.scrollIntoView(); }
+    }
+  }
+
+  Object.keys(ANCORE).forEach(function (m) {
+    var slide = slides[m];
+    if (!slide) return;
+    var chips = slide.querySelectorAll('li[data-section="categories"]');
+    var mappa = ANCORE[m];
+
+    for (var c = 0; c < chips.length && c < mappa.length; c++) {
+      (function (chip, voce, indiceChip) {
+        chip.style.cursor = "pointer";
+        chip.addEventListener("click", function () {
+          // textContent e non innerText: i gruppi non scelti restano nel
+          // documento ma nascosti, e di un elemento nascosto innerText e' vuoto.
+          var nomi = slide.querySelectorAll("[data-tab=name]");
+          var da = -1;
+          for (var n = 0; n < nomi.length; n++) {
+            if ((nomi[n].textContent || "").replace(/\\s+/g, " ").trim() === voce.ancora) {
+              da = n; break;
+            }
+          }
+          if (da < 0) return;
+          var a = da + (voce.voci || 1);
+
+          for (var k = 0; k < nomi.length; k++) {
+            var riga = nomi[k].closest(".elementContainer") || nomi[k].parentElement;
+            if (k >= da && k < a) {
+              riga.classList.remove("mm-vino-via");
+              // Menumal nasconde i gruppi con uno stile scritto sull'elemento:
+              // una regola CSS non lo batte, va tolto quello.
+              var su = nomi[k];
+              while (su && su !== slide) {
+                if (su.style && su.style.display === "none") su.style.display = "";
+                su = su.parentElement;
+              }
+            } else {
+              riga.classList.add("mm-vino-via");
+            }
+          }
+
+          for (var t = 0; t < chips.length; t++) {
+            chips[t].classList.toggle("mm-zona-scelta", t === indiceChip);
+          }
+          portaSu(nomi[da]);
+        });
+      })(chips[c], mappa[c], c);
+    }
+  });
 
   /* ---------- 2. Ricerca ---------- */
   var piatti = document.querySelectorAll(".elementContainer");
@@ -272,7 +362,7 @@ JS_TEMPLATE = """
 """
 
 
-def inject(doc):
+def inject(doc, ancore):
     slides = len(re.findall(r'class="[^"]*carousel__item', doc))
     dishes = len(re.findall(r"elementContainer", doc))
     icons = len(re.findall(r"allergen-food", doc))
@@ -283,7 +373,8 @@ def inject(doc):
         sys.exit("ERRORE: solo %d piatti trovati, la ricerca sarebbe inutile" % dishes)
 
     import json
-    js = JS_TEMPLATE % json.dumps(ALLERGENI, ensure_ascii=False)
+    js = JS_TEMPLATE % (json.dumps(ALLERGENI, ensure_ascii=False),
+                        json.dumps(ancore, ensure_ascii=False))
     block = "<style id='mm-stile'>%s</style><script id='mm-script'>%s</script>" % (CSS, js)
 
     end = re.search(r"</body\s*>", doc, re.I)
@@ -292,8 +383,24 @@ def inject(doc):
 
 
 if __name__ == "__main__":
+    import json
+    import os
+
     doc = open(sys.argv[1], encoding="utf-8", errors="ignore").read()
-    out, slides, dishes, icons = inject(doc)
+
+    # Le ancore sono un di piu': se la scoperta non e' andata a buon fine il menu
+    # resta comunque completo e navigabile, solo i chip delle zone non portano
+    # da nessuna parte. Meglio pubblicare cosi' che non pubblicare.
+    ancore = {}
+    if len(sys.argv) > 3 and os.path.exists(sys.argv[3]):
+        try:
+            ancore = json.load(open(sys.argv[3], encoding="utf-8"))
+        except ValueError:
+            print("  avviso: ancore illeggibili, i chip delle zone resteranno fermi")
+
+    out, slides, dishes, icons = inject(doc, ancore)
     open(sys.argv[2], "w", encoding="utf-8").write(out)
-    print("interazioni: %d macro-categorie, %d piatti ricercabili, %d icone allergene"
-          % (slides, dishes, icons))
+
+    n = sum(len(v) for v in ancore.values())
+    print("interazioni: %d macro-categorie, %d piatti ricercabili, %d icone allergene, %d zone"
+          % (slides, dishes, icons, n))

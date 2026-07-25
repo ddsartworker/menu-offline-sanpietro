@@ -14,7 +14,7 @@ mkdir -p "$OUT_DIR"
 work=$(mktemp -d -t menu-XXXXXX)
 trap 'rm -rf "$work"' EXIT
 
-echo "==> 1/6 Cattura $MENU_URL"
+echo "==> 1/7 Cattura $MENU_URL"
 # Sui runner CI Chrome gira da root senza namespace utente e la sandbox lo
 # blocca all'avvio: senza --no-sandbox la cattura fallisce con "fetch failed".
 # Menumal ogni tanto rifiuta la richiesta dal runner e single-file riporta solo
@@ -54,19 +54,27 @@ fi
 
 # L'URL pubblico e' una vetrina che incornicia il menu in un finto tablet.
 # Il menu vero e' il documento dentro l'iframe.
-echo "==> 2/6 Estrazione del menu dalla cornice"
+echo "==> 2/7 Estrazione del menu dalla cornice"
 python3 tools/extract.py "$work/page.html" "$work/menu.html"
 
-echo "==> 3/6 Rimozione font inutilizzati"
+echo "==> 3/7 Rimozione font inutilizzati"
 python3 tools/slim.py "$work/menu.html" "$work/slim.html"
 
-echo "==> 4/6 Reintegro regole icone"
+echo "==> 4/7 Reintegro regole icone"
 python3 tools/icons.py "$work/slim.html" "$work/icone.html" "$MENU_URL"
 
-echo "==> 5/6 Ricostruzione interazioni"
-python3 tools/interactions.py "$work/icone.html" "$OUT_DIR/menu.html"
+echo "==> 5/7 Scoperta ancore delle zone"
+# Facoltativo: se fallisce il menu resta completo, solo i chip delle zone dei
+# vini non portano da nessuna parte. Non vale bloccare la pubblicazione.
+# L'installazione sta qui e non nel workflow: cosi' una correzione resta dentro
+# gli script, senza dover rimettere mano ai file di GitHub Actions.
+npm install --no-save --silent puppeteer-core >/dev/null 2>&1 || true
+node tools/anchors.mjs "$work/anchors.json" || echo "    ancore non scoperte, si prosegue"
 
-echo "==> 6/6 Verifica del file finale"
+echo "==> 6/7 Ricostruzione interazioni"
+python3 tools/interactions.py "$work/icone.html" "$OUT_DIR/menu.html" "$work/anchors.json"
+
+echo "==> 7/7 Verifica del file finale"
 python3 tools/verify.py "$OUT_DIR/menu.html"
 
 # Gli allergeni sono obbligatori per legge: se mancano non si pubblica.
