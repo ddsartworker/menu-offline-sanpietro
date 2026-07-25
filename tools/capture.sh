@@ -14,7 +14,7 @@ mkdir -p "$OUT_DIR"
 work=$(mktemp -d -t menu-XXXXXX)
 trap 'rm -rf "$work"' EXIT
 
-echo "==> 1/5 Cattura $MENU_URL"
+echo "==> 1/6 Cattura $MENU_URL"
 # Sui runner CI Chrome gira da root senza namespace utente e la sandbox lo
 # blocca all'avvio: senza --no-sandbox la cattura fallisce con "fetch failed".
 npx -y single-file-cli \
@@ -36,16 +36,19 @@ fi
 
 # L'URL pubblico e' una vetrina che incornicia il menu in un finto tablet.
 # Il menu vero e' il documento dentro l'iframe.
-echo "==> 2/5 Estrazione del menu dalla cornice"
+echo "==> 2/6 Estrazione del menu dalla cornice"
 python3 tools/extract.py "$work/page.html" "$work/menu.html"
 
-echo "==> 3/5 Rimozione font inutilizzati"
+echo "==> 3/6 Rimozione font inutilizzati"
 python3 tools/slim.py "$work/menu.html" "$work/slim.html"
 
-echo "==> 4/5 Reintegro regole icone"
-python3 tools/icons.py "$work/slim.html" "$OUT_DIR/menu.html" "$MENU_URL"
+echo "==> 4/6 Reintegro regole icone"
+python3 tools/icons.py "$work/slim.html" "$work/icone.html" "$MENU_URL"
 
-echo "==> 5/5 Verifica del file finale"
+echo "==> 5/6 Ricostruzione interazioni"
+python3 tools/interactions.py "$work/icone.html" "$OUT_DIR/menu.html"
+
+echo "==> 6/6 Verifica del file finale"
 python3 tools/verify.py "$OUT_DIR/menu.html"
 
 # Gli allergeni sono obbligatori per legge: se mancano non si pubblica.
