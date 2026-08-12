@@ -94,10 +94,10 @@ class MainActivity : AppCompatActivity() {
     /**
      * Il pulsante in sala: "guarda adesso se c'e' un menu nuovo".
      *
-     * Il controllo automatico c'e' gia' - a ogni apertura e una volta all'ora -
+     * Il controllo automatico c'e' gia' - a ogni apertura e ogni quarto d'ora -
      * ma quando il proprietario cambia un prezzo su Menumal e vuole vederlo sul
-     * tablet subito, aspettare un'ora e' inaccettabile e non c'e' modo di sapere
-     * se sta funzionando. Qui la risposta arriva in due secondi e dice sempre
+     * tablet subito, aspettare non va bene e non c'e' modo di sapere se sta
+     * funzionando. Qui la risposta arriva in due secondi e dice sempre
      * *quanto e' vecchia la copia online*, non solo se il tablet e' allineato:
      * ad agosto 2026 il tablet era perfettamente allineato a un menu fermo da
      * sei giorni, e nessuno poteva accorgersene guardando lo schermo.

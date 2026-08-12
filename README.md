@@ -29,8 +29,13 @@ bianca. Il livello di cache va costruito fuori dalla pagina.
 2. Lo snapshot viene ripulito dei font inutilizzati e pubblicato su GitHub Pages
    insieme a un `version.json` con il suo hash. Se il menu non è cambiato, non
    si pubblica nulla.
-3. **L'app sul tablet** mostra sempre la copia locale. Quando ha rete scarica
-   `version.json` (200 byte) e, solo se l'hash è cambiato, il nuovo snapshot.
+3. **L'app sul tablet** mostra sempre la copia locale. Ogni quarto d'ora, a ogni
+   apertura e a ogni pressione del pulsante in sala scarica `version.json`
+   (200 byte) e, solo se l'hash è cambiato, il nuovo snapshot.
+
+Da una modifica su Menumal al tablet passano di solito venti minuti scarsi, poco
+più di mezz'ora nel caso peggiore: quindici minuti di attesa della cattura,
+quattro di elaborazione, e il controllo successivo del tablet.
 
 Il tablet non dipende mai dalla rete per *mostrare* il menu. La rete serve solo,
 quando c'è, per *aggiornarlo*.
@@ -146,8 +151,9 @@ lavora in sala sa dov'è, chi legge il menu non la nota, e se la preme un client
 al massimo parte un controllo in più.
 
 Premendola il tablet guarda subito se c'è un menu nuovo, invece di aspettare il
-controllo dell'ora, e se lo trova lo applica sul momento. La risposta dice
-sempre **quanto è vecchia la copia online**, non solo se il tablet è allineato:
+controllo del quarto d'ora, e se lo trova lo applica sul momento. La risposta
+dice sempre **quanto è vecchia la copia online**, non solo se il tablet è
+allineato:
 
 - *Menu aggiornato* — c'era una versione nuova, è già a schermo
 - *Già aggiornato — il menu online è di 12 minuti fa* — tutto a posto

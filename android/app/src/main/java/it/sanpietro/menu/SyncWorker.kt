@@ -33,16 +33,27 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
             .setRequiredNetworkType(NetworkType.CONNECTED)
             .build()
 
-        /** Controllo di fondo mentre il tablet resta acceso tutto il giorno. */
+        /**
+         * Controllo di fondo mentre il tablet resta acceso tutto il giorno.
+         *
+         * Un quarto d'ora e' il minimo che Android concede, ed e' anche il
+         * passo con cui il menu viene catturato: piu' fitto non servirebbe a
+         * niente. Cosi' il caso peggiore - tablet acceso, app aperta, nessuno
+         * che la tocca - scende da un'ora e mezza a poco piu' di mezz'ora.
+         * Costa quattro richieste da 200 byte l'ora.
+         */
         fun schedulePeriodic(ctx: Context) {
-            val request = PeriodicWorkRequestBuilder<SyncWorker>(1, TimeUnit.HOURS)
+            val request = PeriodicWorkRequestBuilder<SyncWorker>(15, TimeUnit.MINUTES)
                 .setConstraints(onlyWhenOnline)
                 .setBackoffCriteria(androidx.work.BackoffPolicy.EXPONENTIAL, 5, TimeUnit.MINUTES)
                 .build()
 
             WorkManager.getInstance(ctx).enqueueUniquePeriodicWork(
                 PERIODIC,
-                ExistingPeriodicWorkPolicy.KEEP,
+                // UPDATE e non KEEP: con KEEP il lavoro gia' registrato sul
+                // tablet resterebbe quello vecchio, e un cambio di cadenza non
+                // arriverebbe mai a chi ha gia' l'app installata.
+                ExistingPeriodicWorkPolicy.UPDATE,
                 request,
             )
         }
