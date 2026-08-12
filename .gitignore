@@ -13,5 +13,6 @@ android/.idea/
 
 .DS_Store
 node_modules/
-package-lock.json
-package.json
+
+# package.json e package-lock.json invece si versionano: le versioni degli
+# strumenti di cattura sono fissate apposta, e' il lockfile a tenerle ferme.

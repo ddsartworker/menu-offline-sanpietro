@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Il tondo sotto il pulsante: scuro e semitrasparente, cosi' si stacca sia
+     sul bianco delle pagine del menu sia sulle foto dei piatti. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="#B3111111" />
+    <stroke
+        android:width="1dp"
+        android:color="#33FFFFFF" />
+</shape>

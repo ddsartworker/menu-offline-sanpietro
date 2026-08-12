@@ -27,16 +27,11 @@ while [ "$(date +%s)" -lt "$scadenza" ]; do
   echo ""
   echo "########## giro $giro - $(date -u '+%F %H:%M:%S') UTC ##########"
 
-  if bash tools/capture.sh; then
-    if bash tools/publish.sh; then
-      riusciti=$((riusciti + 1))
-    else
-      falliti=$((falliti + 1))
-      echo "!! pubblicazione non riuscita, si riprova al prossimo giro"
-    fi
+  if bash tools/giro.sh; then
+    riusciti=$((riusciti + 1))
   else
     falliti=$((falliti + 1))
-    echo "!! cattura non riuscita, si riprova al prossimo giro"
+    echo "!! giro non riuscito, si riprova fra un quarto d'ora"
   fi
 
   # L'attesa tiene conto del tempo gia' speso: un giro dura qualche minuto e

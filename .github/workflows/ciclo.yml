@@ -29,11 +29,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Vedi snapshot.yml: su Node 20 simple-cdp non trova CloseEvent e la
-      # cattura fallisce a ogni giro.
+      # Vedi snapshot.yml: la versione sta in .nvmrc perche' possa aggiornarsi
+      # da sola.
       - uses: actions/setup-node@v4
         with:
-          node-version: "24"
+          node-version-file: .nvmrc
 
       - name: Dipendenze
         run: pip install --quiet fonttools brotli

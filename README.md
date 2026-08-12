@@ -23,9 +23,9 @@ bianca. Il livello di cache va costruito fuori dalla pagina.
 
 ## Come funziona
 
-1. **GitHub Actions**, ogni ora, apre il menu con Chrome headless, aspetta che
-   Firestore consegni i dati e salva uno snapshot autoconsistente — CSS, font e
-   immagini incorporati, **zero richieste esterne**.
+1. **GitHub Actions**, ogni quarto d'ora, apre il menu con Chrome headless,
+   aspetta che Firestore consegni i dati e salva uno snapshot autoconsistente —
+   CSS, font e immagini incorporati, **zero richieste esterne**.
 2. Lo snapshot viene ripulito dei font inutilizzati e pubblicato su GitHub Pages
    insieme a un `version.json` con il suo hash. Se il menu non è cambiato, non
    si pubblica nulla.
@@ -41,6 +41,36 @@ Nessuna tecnologia può portare su un tablet una modifica fatta cinque minuti fa
 se quel tablet non ha connessione. Quello che l'app garantisce è: mostra sempre
 l'ultima versione che è riuscita a scaricare, e si aggiorna da sola appena vede
 una qualunque connessione, senza che nessuno debba toccare niente.
+
+## Quando la catena si rompe
+
+Il 5 agosto 2026 alle 23:20 UTC è uscita una versione nuova di una libreria che
+`single-file-cli` usa per pilotare Chrome. Da quel minuto ogni cattura è morta
+con `ReferenceError: CloseEvent is not defined` e il tablet ha continuato a
+mostrare il menu di quel giorno per sei giorni. Qui nessuno aveva toccato
+niente.
+
+Le mail di fallimento arrivavano: quattro all'ora, uguali a quelle dei buchi di
+rete che si richiudono da soli al giro dopo. È il motivo per cui non le leggeva
+più nessuno — un avviso che arriva sempre non dice niente. Se n'è accorto un
+cameriere, guardando il tablet.
+
+Le tre correzioni contano più della riga cambiata:
+
+**Le versioni sono fissate** — `package.json`, `package-lock.json`, `.nvmrc`.
+Prima `npx -y` prendeva sempre l'ultima pubblicata: comodo, finché qualcuno a
+monte non pubblica qualcosa di rotto un mercoledì sera.
+
+**Restare fermi però è l'altro modo di rompersi**: prima o poi il Chrome del
+runner non parlerà più con un single-file di due anni fa. Quindi ogni lunedì
+`tools/strumenti.sh` prova le versioni nuove su una cattura vera e le adotta
+solo se il menu che producono passa i controlli di sempre, allergeni compresi.
+Se non passano, resta quella di prima e non c'è niente da decidere per nessuno.
+
+**L'allarme adesso si distingue dal rumore.** Un giro storto con un menu fresco
+alle spalle passa in silenzio; se invece il menu pubblicato non si rinnova da
+tre ore, `tools/guardia.sh` apre una segnalazione — una sola, che si richiude da
+sola appena riparte. Se arriva quella mail, è successo qualcosa davvero.
 
 ## Due trappole trovate lungo la strada
 
@@ -74,9 +104,9 @@ Menumal precarica ~65 famiglie Google Fonts, di cui questo menu ne usa cinque.
 
 | | pagina intera | menu estratto e ripulito |
 | --- | --- | --- |
-| Snapshot | 9,74 MB | **1,51 MB** |
-| Trasferito (gzip) | 6,5 MB | **0,77 MB** |
-| Prezzi | 274 | 274 |
+| Snapshot | 8,77 MB | **1,64 MB** |
+| Trasferito (gzip) | 6,05 MB | **0,80 MB** |
+| Prezzi | 408 | 408 |
 | Risorse esterne | 0 | **0** |
 
 Lo script fallisce di proposito se una famiglia effettivamente usata sparisse,
@@ -90,10 +120,15 @@ invece di pubblicare un menu con i font rotti.
 bash tools/capture.sh          # produce dist/menu.html e dist/version.json
 ```
 
-**Forzare un aggiornamento subito**: Actions → *Snapshot menu* → *Run workflow*.
+**Forzare un aggiornamento subito**: dal tablet basta il pulsante in basso a
+sinistra. Da GitHub: Actions → *Snapshot menu* → *Run workflow*.
 
 **Ricompilare l'APK**: Actions → *Build APK* → *Run workflow*. Il file finisce
 nella release `apk-latest`, scaricabile direttamente dal browser del tablet.
+
+**Sapere se la catena è viva**: Actions → *Guardia menu* → *Run workflow*.
+Risponde con l'età del menu pubblicato senza toccare niente. È la stessa cosa
+che dice il pulsante sul tablet, e gira comunque da sola ogni ora.
 
 ## Installazione sul tablet
 
@@ -104,16 +139,42 @@ nella release `apk-latest`, scaricabile direttamente dal browser del tablet.
 4. Consigliato: Impostazioni → Display → sospensione schermo mai, e blocco
    schermo su "nessuno".
 
+## Il pulsante in sala
+
+In basso a sinistra c'è una freccia circolare, piccola e semitrasparente. Chi
+lavora in sala sa dov'è, chi legge il menu non la nota, e se la preme un cliente
+al massimo parte un controllo in più.
+
+Premendola il tablet guarda subito se c'è un menu nuovo, invece di aspettare il
+controllo dell'ora, e se lo trova lo applica sul momento. La risposta dice
+sempre **quanto è vecchia la copia online**, non solo se il tablet è allineato:
+
+- *Menu aggiornato* — c'era una versione nuova, è già a schermo
+- *Già aggiornato — il menu online è di 12 minuti fa* — tutto a posto
+- *Già aggiornato — il menu online è di 3 giorni fa* — il tablet è a posto ma la
+  catena a monte è ferma: è il caso in cui serve guardare le segnalazioni
+- *Nessuna connessione — resta il menu di un'ora fa* — niente rete adesso
+
+La differenza fra le due righe di mezzo è tutto il punto. Ad agosto il tablet
+era perfettamente allineato a un menu fermo da sei giorni, e dallo schermo non
+c'era modo di accorgersene.
+
 ## Struttura
 
 ```
-tools/capture.sh       orchestra i 5 passi, con controlli anti-pagina-vuota
+tools/giro.sh          un giro intero: cattura, pubblica, e decide se il buco
+                       merita un allarme o si richiude da solo
+tools/capture.sh       orchestra gli 8 passi, con controlli anti-pagina-vuota
 tools/extract.py       estrae il menu dalla cornice del finto tablet
 tools/slim.py          rimozione font inutilizzati, con rete di sicurezza
 tools/icons.py         reintegra le regole icone, sostituisce i glifi mancanti
 tools/coverage.py      legge la cmap dei font: quali glifi ci sono davvero
 tools/verify.py        controllo finale sul file che va sul tablet
-.github/workflows/     snapshot orario + build APK
+tools/eta.sh           da quanto non cambia il menu che il tablet vede davvero
+tools/guardia.sh       la sentinella: apre una segnalazione sola, e la richiude
+tools/strumenti.sh     prova le versioni nuove, le adotta solo se reggono
+package.json .nvmrc    versioni fissate degli strumenti di cattura
+.github/workflows/     ciclo di cattura, guardia, strumenti, build APK
 android/               app Kotlin: WebView su file locale + sync WorkManager
 ```
 

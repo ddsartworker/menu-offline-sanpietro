@@ -8,6 +8,10 @@ import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
+import java.text.ParseException
+import java.text.SimpleDateFormat
+import java.util.Locale
+import java.util.TimeZone
 
 /**
  * Tiene allineata la copia locale del menu con quella pubblicata.
@@ -24,13 +28,51 @@ object Updater {
     private const val KEY_PENDING_RELOAD = "pending_reload"
     private const val KEY_LAST_CHECK = "last_check"
 
+    /**
+     * L'esito porta con se' [pubblicato], cioe' quando e' stato catturato il
+     * menu che sta online, non quando il tablet l'ha scaricato. E' la
+     * differenza che serve a chi lavora in sala: "sei aggiornato" non vuol dire
+     * niente se e' la copia online a essere ferma da sei giorni.
+     */
     sealed class Result {
-        object UpToDate : Result()
-        data class Updated(val sha: String) : Result()
+        data class UpToDate(val pubblicato: String) : Result()
+        data class Updated(val sha: String, val pubblicato: String) : Result()
         data class Failed(val reason: String) : Result()
     }
 
     fun menuFile(ctx: Context) = File(ctx.filesDir, "menu.html")
+
+    /**
+     * Da quanto tempo e' stato catturato il menu pubblicato, detto come lo
+     * direbbe una persona. Serve a rispondere alla domanda vera di chi e' in
+     * sala - "questo menu e' quello giusto?" - che non e' la stessa cosa di
+     * "il tablet ha scaricato tutto".
+     *
+     * java.time qui non si puo' usare: l'app arriva fino ad Android 7.
+     */
+    fun etaPubblicazione(iso: String?): String? {
+        if (iso.isNullOrBlank()) return null
+        val formato = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.ITALY)
+            .apply { timeZone = TimeZone.getTimeZone("UTC") }
+        val quando = try {
+            formato.parse(iso)
+        } catch (e: ParseException) {
+            null
+        } ?: return null
+
+        val minuti = (System.currentTimeMillis() - quando.time) / 60_000
+        return when {
+            // Orologio del tablet indietro rispetto al server: meglio tacere
+            // che dire "fra due ore".
+            minuti < 0 -> null
+            minuti < 2 -> "adesso"
+            minuti < 60 -> "$minuti minuti fa"
+            minuti < 120 -> "un'ora fa"
+            minuti < 1440 -> "${minuti / 60} ore fa"
+            minuti < 2880 -> "ieri"
+            else -> "${minuti / 1440} giorni fa"
+        }
+    }
 
     fun hasMenu(ctx: Context) = menuFile(ctx).length() > 0
 
@@ -53,13 +95,20 @@ object Updater {
             val meta = JSONObject(fetchText("$base/version.json"))
             val remoteSha = meta.getString("sha256")
             val expectedSize = meta.optLong("size", -1L)
+            val pubblicato = meta.optString("updated", "")
 
-            prefs(ctx).edit().putLong(KEY_LAST_CHECK, System.currentTimeMillis()).apply()
+            // La data di pubblicazione si annota a ogni controllo, non solo
+            // quando si scarica: se la copia online e' ferma, il tablet lo sa
+            // gia' senza dover aspettare un aggiornamento che non arriva.
+            prefs(ctx).edit()
+                .putLong(KEY_LAST_CHECK, System.currentTimeMillis())
+                .putString(KEY_UPDATED, pubblicato)
+                .apply()
 
             // Anche se l'hash coincide, un file locale mancante va riscaricato:
             // puo' succedere dopo uno svuotamento dati o un aggiornamento interrotto.
             if (remoteSha == currentSha(ctx) && hasMenu(ctx)) {
-                return@withContext Result.UpToDate
+                return@withContext Result.UpToDate(pubblicato)
             }
 
             val tmp = File(ctx.filesDir, "menu.download")
@@ -83,11 +132,11 @@ object Updater {
 
             prefs(ctx).edit()
                 .putString(KEY_SHA, remoteSha)
-                .putString(KEY_UPDATED, meta.optString("updated", ""))
+                .putString(KEY_UPDATED, pubblicato)
                 .putBoolean(KEY_PENDING_RELOAD, true)
                 .apply()
 
-            Result.Updated(remoteSha)
+            Result.Updated(remoteSha, pubblicato)
         } catch (e: Exception) {
             Result.Failed(e.message ?: e.javaClass.simpleName)
         }

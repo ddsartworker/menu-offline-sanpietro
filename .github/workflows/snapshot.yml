@@ -27,25 +27,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # single-file-cli parla col browser via simple-cdp, che dalla 1.10.0
-      # (5 agosto 2026) usa CloseEvent: su Node 20 non esiste come globale e
-      # ogni cattura muore con "ReferenceError: CloseEvent is not defined".
+      # La versione sta in .nvmrc e non qui: e' un file normale, quindi il giro
+      # settimanale di tools/strumenti.sh puo' portarla avanti da solo dopo
+      # averla provata, mentre un file di workflow non puo' modificarlo.
       - uses: actions/setup-node@v4
         with:
-          node-version: "24"
+          node-version-file: .nvmrc
 
       - name: Dipendenze
         run: pip install --quiet fonttools brotli
 
-      - name: Cattura e ottimizza
+      # Un giro storto con un menu fresco alle spalle non fa fallire niente:
+      # la differenza fra un buco passeggero e un guasto la fa tools/giro.sh.
+      - name: Cattura e pubblica
         env:
           CHROME_PATH: /usr/bin/google-chrome
-        run: bash tools/capture.sh
-
-      - name: Pubblica se cambiato
-        env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: bash tools/publish.sh
+        run: bash tools/giro.sh
 
       - name: Riepilogo
         if: always()

@@ -19,6 +19,22 @@
         android:textSize="18sp"
         android:visibility="gone" />
 
+    <!-- Sta in basso a sinistra, piccolo e mezzo trasparente: chi lavora in
+         sala sa dov'e', chi legge il menu non lo nota. Se lo preme un cliente
+         non succede niente di male, al massimo un controllo in piu'. -->
+    <ImageButton
+        android:id="@+id/aggiorna"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_gravity="bottom|start"
+        android:layout_margin="16dp"
+        android:alpha="0.35"
+        android:background="@drawable/sfondo_tondo"
+        android:contentDescription="@string/aggiorna_ora"
+        android:padding="12dp"
+        android:scaleType="fitCenter"
+        android:src="@drawable/ic_aggiorna" />
+
     <TextView
         android:id="@+id/banner"
         android:layout_width="wrap_content"

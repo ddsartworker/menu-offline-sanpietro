@@ -1,0 +1,32 @@
+name: Guardia menu
+
+# Non cattura niente: guarda soltanto da quanto tempo non cambia il menu che il
+# tablet vede, e se e' fermo apre una segnalazione.
+#
+# E' il pezzo che mancava. Le mail di fallimento arrivavano gia', quattro
+# all'ora, anche per i buchi che si richiudono da soli: a forza di arrivare non
+# volevano piu' dire niente, e un menu fermo da sei giorni ci si e' nascosto
+# dentro. Una issue che si apre da sola quando serve, e si richiude da sola
+# quando il menu riparte, si vede.
+on:
+  schedule:
+    - cron: "23 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: guardia
+
+jobs:
+  guardia:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Controlla l'eta' del menu pubblicato
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash tools/guardia.sh

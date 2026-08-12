@@ -1,0 +1,42 @@
+name: Strumenti di cattura
+
+# Le versioni degli strumenti sono fissate, se no un aggiornamento pubblicato a
+# monte puo' fermare il menu del locale da un minuto all'altro. Ma restare fermi
+# per sempre e' l'altro modo di rompersi: prima o poi il Chrome del runner non
+# parla piu' con un single-file vecchio.
+#
+# Quindi ogni lunedi' si prova la versione nuova - ultima LTS di Node, ultimi
+# pacchetti - su una cattura vera, e la si adotta solo se il menu che produce
+# passa i controlli di sempre. Se non passa, resta quella di prima: nessuno deve
+# leggere niente, nessuno deve decidere niente.
+on:
+  schedule:
+    - cron: "40 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: strumenti
+
+jobs:
+  prova:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Qui si chiede la LTS del momento, non quella in .nvmrc: e' proprio il
+      # salto che si sta mettendo alla prova.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+
+      - name: Dipendenze
+        run: pip install --quiet fonttools brotli
+
+      - name: Prova le versioni nuove su una cattura vera
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+          GITHUB_TOKEN: ${{ github.token }}
+        run: bash tools/strumenti.sh

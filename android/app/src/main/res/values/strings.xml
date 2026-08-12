@@ -1,6 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Menu San Pietro</string>
-    <string name="first_sync">Primo avvio: collega il tablet a internet una volta per scaricare il menu.\n\nDopo questa volta funzionerà anche senza connessione.</string>
-    <string name="updated_banner">Menu aggiornato — sarà attivo alla prossima apertura</string>
+    <string name="first_sync">Primo avvio: collega il tablet a internet una volta per scaricare il menu.\n\nDopo questa volta funzionerà anche senza connessione.</string>
+    <string name="updated_banner">Menu aggiornato — sarà attivo alla prossima apertura</string>
+
+    <string name="aggiorna_ora">Cerca aggiornamenti del menu</string>
+    <string name="aggiorno">Controllo…</string>
+    <string name="aggiornato_adesso">Menu aggiornato</string>
+    <!-- Non basta dire "sei aggiornato": se e' la copia online a essere ferma,
+         il tablet e' allineato a un menu vecchio e sembra tutto a posto. -->
+    <string name="gia_aggiornato">Già aggiornato — il menu online è di %1$s</string>
+    <string name="gia_aggiornato_senza_data">Già aggiornato</string>
+    <string name="senza_rete">Nessuna connessione — resta il menu di %1$s</string>
+    <string name="senza_rete_senza_data">Nessuna connessione — resta il menu già scaricato</string>
 </resources>

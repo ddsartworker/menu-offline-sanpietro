@@ -2,9 +2,13 @@ package it.sanpietro.menu
 
 import android.annotation.SuppressLint
 import android.os.Bundle
+import android.os.SystemClock
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
+import android.view.animation.Animation
+import android.view.animation.LinearInterpolator
+import android.view.animation.RotateAnimation
 import android.webkit.WebView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
@@ -13,6 +17,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import it.sanpietro.menu.databinding.ActivityMainBinding
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -26,6 +31,8 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private var lastTouch = 0L
+    private var controlloInCorso = false
+    private val nascondiAvviso = Runnable { binding.banner.visibility = View.GONE }
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -50,6 +57,8 @@ class MainActivity : AppCompatActivity() {
             // fallirebbe offline, meglio non uscire mai dal menu.
             webViewClient = LocalOnlyWebViewClient()
         }
+
+        binding.aggiorna.setOnClickListener { controllaAdesso() }
 
         SyncWorker.schedulePeriodic(this)
         observeSync()
@@ -82,6 +91,87 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Il pulsante in sala: "guarda adesso se c'e' un menu nuovo".
+     *
+     * Il controllo automatico c'e' gia' - a ogni apertura e una volta all'ora -
+     * ma quando il proprietario cambia un prezzo su Menumal e vuole vederlo sul
+     * tablet subito, aspettare un'ora e' inaccettabile e non c'e' modo di sapere
+     * se sta funzionando. Qui la risposta arriva in due secondi e dice sempre
+     * *quanto e' vecchia la copia online*, non solo se il tablet e' allineato:
+     * ad agosto 2026 il tablet era perfettamente allineato a un menu fermo da
+     * sei giorni, e nessuno poteva accorgersene guardando lo schermo.
+     */
+    private fun controllaAdesso() {
+        if (controlloInCorso) return
+        controlloInCorso = true
+
+        with(binding.aggiorna) {
+            isEnabled = false
+            alpha = 1f
+            startAnimation(
+                RotateAnimation(
+                    0f, 360f,
+                    Animation.RELATIVE_TO_SELF, 0.5f,
+                    Animation.RELATIVE_TO_SELF, 0.5f,
+                ).apply {
+                    duration = 900
+                    repeatCount = Animation.INFINITE
+                    interpolator = LinearInterpolator()
+                },
+            )
+        }
+        avviso(getString(R.string.aggiorno), resta = true)
+
+        lifecycleScope.launch {
+            val inizio = SystemClock.elapsedRealtime()
+            val esito = Updater.sync(this@MainActivity)
+
+            // Con la fibra la risposta torna in 200 ms: un lampo cosi' non si
+            // legge e sembra che il pulsante non abbia fatto niente.
+            val trascorso = SystemClock.elapsedRealtime() - inizio
+            if (trascorso < 700) delay(700 - trascorso)
+
+            with(binding.aggiorna) {
+                clearAnimation()
+                alpha = 0.35f
+                isEnabled = true
+            }
+            controlloInCorso = false
+
+            when (esito) {
+                is Updater.Result.Updated -> {
+                    // L'ha chiesto una persona, adesso. Non si rimanda alla
+                    // prossima apertura come fa il controllo di fondo: chi ha
+                    // premuto vuole vedere il menu nuovo.
+                    Updater.consumePendingReload(this@MainActivity)
+                    showMenu()
+                    avviso(getString(R.string.aggiornato_adesso))
+                }
+
+                is Updater.Result.UpToDate -> avviso(
+                    Updater.etaPubblicazione(esito.pubblicato)
+                        ?.let { getString(R.string.gia_aggiornato, it) }
+                        ?: getString(R.string.gia_aggiornato_senza_data),
+                )
+
+                is Updater.Result.Failed -> avviso(
+                    Updater.etaPubblicazione(Updater.lastUpdated(this@MainActivity))
+                        ?.let { getString(R.string.senza_rete, it) }
+                        ?: getString(R.string.senza_rete_senza_data),
+                )
+            }
+        }
+    }
+
+    /** Il cartellino nero in basso: compare, dice una cosa sola, sparisce. */
+    private fun avviso(testo: String, resta: Boolean = false) {
+        binding.banner.removeCallbacks(nascondiAvviso)
+        binding.banner.text = testo
+        binding.banner.visibility = View.VISIBLE
+        if (!resta) binding.banner.postDelayed(nascondiAvviso, 6_000)
+    }
+
     private fun observeSync() {
         WorkManager.getInstance(this)
             .getWorkInfosForUniqueWorkLiveData("menu-sync-now")
@@ -99,11 +189,7 @@ class MainActivity : AppCompatActivity() {
                     } else {
                         // Qualcuno ha il tablet in mano: non gli cambiamo il menu
                         // sotto gli occhi, si applichera' alla prossima apertura.
-                        binding.banner.visibility = View.VISIBLE
-                        binding.banner.postDelayed(
-                            { binding.banner.visibility = View.GONE },
-                            6_000,
-                        )
+                        avviso(getString(R.string.updated_banner))
                     }
                 }
             }
