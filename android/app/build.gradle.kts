@@ -27,9 +27,33 @@ android {
         viewBinding = true
     }
 
+    // Android rifiuta un aggiornamento firmato con una chiave diversa dalla
+    // precedente. Il runner di GitHub e' usa e getta e si generava una chiave
+    // di debug nuova a ogni compilazione: due APK di due giorni diversi non si
+    // sovrascrivevano, e sul tablet usciva "App non installata". Adesso la
+    // chiave e' sempre la stessa e arriva da un secret del repository.
+    val chiave: String? = System.getenv("ANDROID_KEYSTORE_FILE")
+
+    signingConfigs {
+        create("stabile") {
+            if (chiave != null) {
+                storeFile = file(chiave)
+                storeType = "PKCS12"
+                storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("ANDROID_KEY_ALIAS")
+                // In un PKCS12 la chiave non ha una password propria.
+                keyPassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            // Senza chiave l'APK esce non firmato: si compila lo stesso per
+            // provare, ma il passo di rinomina nel workflow non lo trova e la
+            // compilazione fallisce invece di pubblicare un file inservibile.
+            signingConfig = if (chiave != null) signingConfigs.getByName("stabile") else null
         }
     }
 

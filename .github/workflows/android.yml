@@ -26,15 +26,48 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      # La chiave e' sempre la stessa, se no ogni APK nuovo non si installa
+      # sopra il precedente e sul tablet bisogna disinstallare a mano.
+      - name: Chiave di firma
+        env:
+          CHIAVE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$CHIAVE" ]; then
+            echo "Manca il secret ANDROID_KEYSTORE_BASE64." >&2
+            echo "Un APK firmato con una chiave qualsiasi non si aggiorna sopra" >&2
+            echo "quello gia' sul tablet: meglio non pubblicarlo affatto." >&2
+            exit 1
+          fi
+          echo "$CHIAVE" | base64 -d > "$RUNNER_TEMP/menu-sanpietro.p12"
+
       - name: Compila
         working-directory: android
+        env:
+          ANDROID_KEYSTORE_FILE: ${{ runner.temp }}/menu-sanpietro.p12
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: |
-          gradle assembleDebug --no-daemon \
+          gradle assembleRelease --no-daemon \
             -PupdateBaseUrl="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"
 
       - name: Rinomina
         run: |
-          mv android/app/build/outputs/apk/debug/app-debug.apk menu-sanpietro.apk
+          mv android/app/build/outputs/apk/release/app-release.apk menu-sanpietro.apk
+
+      # L'impronta finisce nel riepilogo: se un giorno cambiasse, si vedrebbe
+      # qui prima che sul tablet esca "App non installata".
+      - name: Impronta della firma
+        run: |
+          apksigner=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | tail -1)
+          impronta=$("$apksigner" verify --print-certs menu-sanpietro.apk |
+            grep -i "SHA-256 digest" | head -1)
+          echo "$impronta"
+          {
+            echo "### APK"
+            echo ""
+            echo "- $impronta"
+            echo "- Dimensione: $(( $(wc -c < menu-sanpietro.apk) / 1024 )) KB"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@v4
         with:
