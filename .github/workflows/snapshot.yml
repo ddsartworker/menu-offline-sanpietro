@@ -27,9 +27,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # single-file-cli parla col browser via simple-cdp, che dalla 1.10.0
+      # (5 agosto 2026) usa CloseEvent: su Node 20 non esiste come globale e
+      # ogni cattura muore con "ReferenceError: CloseEvent is not defined".
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
 
       - name: Dipendenze
         run: pip install --quiet fonttools brotli
