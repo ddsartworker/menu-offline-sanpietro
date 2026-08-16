@@ -77,6 +77,55 @@ alle spalle passa in silenzio; se invece il menu pubblicato non si rinnova da
 tre ore, `tools/guardia.sh` apre una segnalazione — una sola, che si richiude da
 sola appena riparte. Se arriva quella mail, è successo qualcosa davvero.
 
+### La seconda volta, dall'altro lato
+
+Il 14 agosto 2026 alle 13:41 UTC l'immagine dei runner è passata a Chrome 151.
+Da quel giro `single-file` 2.0.83 avvia il browser con `--browser-single-process`,
+Chrome 151 su Linux con quell'opzione esce subito, e `simple-cdp` — che lo cerca
+su `localhost:9222` — riporta l'unico messaggio che sa dare:
+
+```
+fetch failed [...] URL: https://menu.menumal.com/sanpietrobistrotdelmare
+```
+
+**Quel messaggio non parla del sito.** È lo stesso che esce quando Menumal non
+risponde, e cita l'URL del menu: sembra un problema di rete e non lo è. Vuol
+dire solo che single-file non ha trovato nessun browser dove si aspettava di
+trovarlo. Prima di sospettare il sito conviene chiedersi se Chrome è vivo:
+
+```bash
+google-chrome --headless --no-sandbox --remote-debugging-port=9222 about:blank &
+ss -ltn | grep 9222        # se non ascolta, il problema è qui
+```
+
+Sul runner il sito rispondeva 200 e Chrome partiva regolarmente: era l'avvio in
+processo singolo, e nient'altro.
+
+Questa volta le versioni fissate non hanno protetto da niente, e il ripiego su
+`@latest` nemmeno: **a monte non c'era niente da prendere**, 2.0.83 era l'ultima
+pubblicata dal 29 novembre 2025. La correzione è arrivata solo il 16 agosto con
+2.1.0 e 2.1.1, che riprovano senza `--browser-single-process` quando il browser
+esce. Il ripiego ha ripreso a catturare da solo pochi minuti dopo.
+
+Nel mezzo il tablet ha mostrato lo stesso menu per 53 ore.
+
+È il caso che il giro del lunedì di `tools/strumenti.sh` non copre: lì si
+adottano le versioni nuove quando escono, ma se quello che si rompe è
+l'ambiente sotto — un Chrome nuovo, non una libreria nuova — non c'è ancora
+niente da adottare, e fissare le versioni fa esattamente il contrario di quello
+per cui era stato messo.
+
+**Stavolta l'allarme ha funzionato**: la segnalazione si è aperta alle 13:48,
+tre ore e cinque minuti dopo l'ultimo menu buono, con la precisione prevista.
+È rimasta aperta due giorni senza che nessuno la leggesse. Nelle quarantotto
+ore prima ne erano passate altre quattro, tutte richiuse da sole nel giro di
+ore: buchi di rete veri, abbastanza frequenti da riabituare all'idea che si
+sistemino da sole.
+
+Che è lo stesso guasto del 5 agosto in forma nuova. Prima era il rumore delle
+mail, adesso è il rumore delle segnalazioni. Accorgersene non è più il
+problema; il problema è che l'avviso arriva dove nessuno guarda.
+
 ## Due trappole trovate lungo la strada
 
 **L'URL pubblico non è il menu.** È una vetrina che incornicia il menu dentro un
