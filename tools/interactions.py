@@ -282,7 +282,11 @@ JS_TEMPLATE = """
           for (var o = 0; o < inOrdine.length; o++) {
             var pezzo = inOrdine[o];
             if (pezzo.getAttribute("data-section") === "subcategories") {
-              attesa.push(pezzo);
+              // Va nascosto il riquadro del titolo, non solo il titolo: il
+              // riquadro ha 30px di margine e, una volta tolto il display:none
+              // di Menumal, restava vuoto. Un chip dopo l'altro i riquadri si
+              // sommavano e il gruppo scelto finiva centinaia di pixel sotto.
+              attesa.push(pezzo.closest(".elementContainer") || pezzo);
             } else {
               var dentro = visti >= da && visti < a;
               for (var w = 0; w < attesa.length; w++) {
