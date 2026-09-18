@@ -11,8 +11,8 @@ android {
         applicationId = "it.sanpietro.menu"
         minSdk = 24
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
 
         // Cambiare qui se un giorno cambia l'hosting degli snapshot.
         buildConfigField(

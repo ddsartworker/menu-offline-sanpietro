@@ -12,12 +12,16 @@
         android:supportsRtl="false"
         android:theme="@style/Theme.Menu">
 
+        <!-- Solo orizzontale: in sala il tablet passa di mano in mano e girava
+             a ogni movimento. sensorLandscape lascia il ribaltamento di 180
+             gradi, cosi' il menu si raddrizza se il tablet viene girato al
+             contrario, ma non passa mai in verticale. -->
         <activity
             android:name=".MainActivity"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode"
             android:exported="true"
             android:launchMode="singleTask"
-            android:screenOrientation="fullSensor">
+            android:screenOrientation="sensorLandscape">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
