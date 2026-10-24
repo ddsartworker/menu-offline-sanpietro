@@ -115,6 +115,10 @@ echo "==> 7/8 Ricostruzione interazioni"
 python3 tools/interactions.py "$work/icone.html" "$OUT_DIR/menu.html" \
   "$work/anchors.json" "$work/translations.json"
 
+# Menumal riordina a caso stili e link social a ogni caricamento: senza questo
+# passo ogni cattura avrebbe uno sha nuovo e il tablet riscaricherebbe tutto.
+python3 tools/stabilizza.py "$OUT_DIR/menu.html"
+
 echo "==> 8/8 Verifica del file finale"
 python3 tools/verify.py "$OUT_DIR/menu.html"
 
