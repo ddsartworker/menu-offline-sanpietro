@@ -25,7 +25,6 @@ object Updater {
     private const val PREFS = "menu_state"
     private const val KEY_SHA = "sha256"
     private const val KEY_UPDATED = "updated"
-    private const val KEY_PENDING_RELOAD = "pending_reload"
     private const val KEY_LAST_CHECK = "last_check"
 
     /**
@@ -82,13 +81,6 @@ object Updater {
 
     fun lastUpdated(ctx: Context): String? = prefs(ctx).getString(KEY_UPDATED, null)
 
-    fun consumePendingReload(ctx: Context): Boolean {
-        val p = prefs(ctx)
-        val pending = p.getBoolean(KEY_PENDING_RELOAD, false)
-        if (pending) p.edit().putBoolean(KEY_PENDING_RELOAD, false).apply()
-        return pending
-    }
-
     suspend fun sync(ctx: Context): Result = withContext(Dispatchers.IO) {
         try {
             val base = BuildConfig.UPDATE_BASE_URL.trimEnd('/')
@@ -133,7 +125,6 @@ object Updater {
             prefs(ctx).edit()
                 .putString(KEY_SHA, remoteSha)
                 .putString(KEY_UPDATED, pubblicato)
-                .putBoolean(KEY_PENDING_RELOAD, true)
                 .apply()
 
             Result.Updated(remoteSha, pubblicato)
@@ -142,8 +133,10 @@ object Updater {
         }
     }
 
+    // GitHub Pages risponde con max-age=600 e la CDN puo' ignorare il
+    // no-cache della richiesta: un indirizzo sempre diverso la scavalca.
     private fun open(url: String): HttpURLConnection =
-        (URL(url).openConnection() as HttpURLConnection).apply {
+        (URL("$url?t=${System.currentTimeMillis()}").openConnection() as HttpURLConnection).apply {
             connectTimeout = 30_000
             readTimeout = 60_000
             // Su 4G scadente una risposta dalla cache di un proxy trasparente
