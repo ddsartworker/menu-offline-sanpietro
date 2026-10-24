@@ -110,6 +110,13 @@ node tools/anchors.mjs "$work/anchors.json" || echo "    ancore non scoperte, si
 echo "==> 6/8 Raccolta della versione inglese"
 # Facoltativa come le ancore: se non riesce, il menu resta in italiano.
 node tools/translate.mjs "$work/translations.json" || echo "    traduzioni non raccolte, si prosegue"
+# Google traduce la stessa frase in modi diversi da un giro all'altro: per le
+# frasi gia' pubblicate si tiene la traduzione di allora.
+if [ -f "$work/translations.json" ] &&
+   git fetch -q --depth=1 origin pages:refs/remotes/origin/pages 2>/dev/null &&
+   git show refs/remotes/origin/pages:menu.html > "$work/pubblicato.html" 2>/dev/null; then
+  python3 tools/memoria_traduzioni.py "$work/translations.json" "$work/pubblicato.html"
+fi
 
 echo "==> 7/8 Ricostruzione interazioni"
 python3 tools/interactions.py "$work/icone.html" "$OUT_DIR/menu.html" \
