@@ -106,16 +106,25 @@ echo "==> 5/8 Scoperta ancore delle zone"
 # vini non portano da nessuna parte. Non vale bloccare la pubblicazione.
 # puppeteer-core arriva dal lockfile insieme a single-file, installato sopra.
 node tools/anchors.mjs "$work/anchors.json" || echo "    ancore non scoperte, si prosegue"
+# Il menu gia' pubblicato serve qui e alle traduzioni: le zone cambiano di rado,
+# e se la scoperta va male si tengono le ancore di prima, purche' combacino
+# ancora con i chip e i vini di adesso. Il 30 ottobre 2026 un menu uscito con
+# le ancore vuote ha lasciato fermi i chip dei vini per cinque ore.
+pubblicato=""
+if git fetch -q --depth=1 origin pages:refs/remotes/origin/pages 2>/dev/null &&
+   git show refs/remotes/origin/pages:menu.html > "$work/pubblicato.html" 2>/dev/null; then
+  pubblicato="$work/pubblicato.html"
+  python3 tools/memoria_ancore.py "$work/anchors.json" "$work/icone.html" "$pubblicato" ||
+    echo "    ancore pubblicate non riprese, si prosegue"
+fi
 
 echo "==> 6/8 Raccolta della versione inglese"
 # Facoltativa come le ancore: se non riesce, il menu resta in italiano.
 node tools/translate.mjs "$work/translations.json" || echo "    traduzioni non raccolte, si prosegue"
 # Google traduce la stessa frase in modi diversi da un giro all'altro: per le
 # frasi gia' pubblicate si tiene la traduzione di allora.
-if [ -f "$work/translations.json" ] &&
-   git fetch -q --depth=1 origin pages:refs/remotes/origin/pages 2>/dev/null &&
-   git show refs/remotes/origin/pages:menu.html > "$work/pubblicato.html" 2>/dev/null; then
-  python3 tools/memoria_traduzioni.py "$work/translations.json" "$work/pubblicato.html"
+if [ -f "$work/translations.json" ] && [ -n "$pubblicato" ]; then
+  python3 tools/memoria_traduzioni.py "$work/translations.json" "$pubblicato"
 fi
 
 echo "==> 7/8 Ricostruzione interazioni"
