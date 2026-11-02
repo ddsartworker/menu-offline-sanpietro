@@ -5,6 +5,6 @@
   "description": "Strumenti di cattura del menu, a versione fissata: quello che gira sul runner deve essere lo stesso che ha funzionato ieri.",
   "dependencies": {
     "puppeteer-core": "25.16.0",
-    "single-file-cli": "2.19.0"
+    "single-file-cli": "2.21.0"
   }
 }
